@@ -41,6 +41,9 @@ def main():
     
     parser.add_argument('--llm-judge', choices=['openai', 'anthropic', 'off'], default='anthropic',
                         help='Type of judgement to use for LLM comparison')
+
+    parser.add_argument('--time', action='store_true',
+                        help='Use timed version of query functions')
     
     args = parser.parse_args()
 
@@ -63,7 +66,7 @@ def main():
         query_manager = LLMQueryManager(model_name=args.model_name, llm_judge=args.llm_judge)
         
         if args.query:
-            results = query_manager.execute_query(df, args.query, column=args.column)
+            results = query_manager.execute_query_llm(df, args.query, column=args.column, measure_time=args.time)
             logger.info(f"Query results: {results}")
         
         logger.info(query_manager.performance_metrics)

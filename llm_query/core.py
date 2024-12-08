@@ -11,40 +11,6 @@ from transformers import AutoTokenizer
 from functools import wraps
 
 
-def _time_query(func: Callable) -> Callable:
-    @wraps(func)
-    def wrapper(instance: Any, *args, **kwargs) -> Any:
-        start_time = time.time()
-        result = func(instance, *args, **kwargs)
-        end_time = time.time()
-        
-        # Store total execution time
-        instance.performance_metrics[func.__name__] = {
-            'total_execution_time': end_time - start_time,
-            'timestamp': time.strftime("%Y-%m-%d %H:%M:%S"),
-            'row_count': len(args[0]) if isinstance(args[0], pd.DataFrame) else 0,
-            'average_per_row': (end_time - start_time) / len(args[0]) if isinstance(args[0], pd.DataFrame) else 0
-        }
-        return result
-    return wrapper
-
-def _time_single_inference(func: Callable) -> Callable:
-    @wraps(func)
-    def wrapper(instance: Any, *args, **kwargs) -> Any:
-        start_time = time.time()
-        result = func(instance, *args, **kwargs)
-        end_time = time.time()
-        
-        # Store single inference time
-        method_name = f"{func.__name__}_single"
-        instance.performance_metrics[method_name] = {
-            'single_inference_time': end_time - start_time,
-            'timestamp': time.strftime("%Y-%m-%d %H:%M:%S")
-        }
-        return result
-    return wrapper
-
-
 class LLMQueryManager:
     def __init__(self, model_name: str = None, llm_judge: str = 'openai'):
         super().__init__()
@@ -74,20 +40,38 @@ class LLMQueryManager:
         with open(cache_file, 'w') as f:
             json.dump(cache, f)
 
-    @_time_query
-    def execute_query(self, df: pd.DataFrame, query: str, column: str = None) -> pd.DataFrame:
-        df[f'local_result'] = df[column].apply(lambda x: self._local_query(x, query))
-        return df
+    def execute_query_llm(self, df: pd.DataFrame, query: str, column: str = None, measure_time: bool = False) -> pd.DataFrame:
+        
+        if measure_time:
+            total_start_time_local = time.time()
+            df[f'local_result'] = df[column].apply(lambda x: self._timed_local_query(x, query))
+            total_end_time_local = time.time()
+            total_inference_time_local = total_start_time_local - total_end_time_local
+            self.performance_metrics['total_inference_time_local'] = total_inference_time_local
+        else:
+            df[f'local_result'] = df[column].apply(lambda x: self._local_query(x, query))
 
-    @_time_query
-    def execute_query_llm(self, df: pd.DataFrame, query: str, column: str = None) -> pd.DataFrame:
+        
         if self.llm_judge == 'openai':
-            df[f'{self.llm_judge}_result'] = df[column].apply(lambda x: self._openai_query(x, query))
+            if measure_time:
+                total_start_time_openai = time.time()
+                df[f'{self.llm_judge}_result'] = df[column].apply(lambda x: self._timed_openai_query(x, query))
+                total_end_time_openai = time.time()
+                total_inference_time_openai = total_start_time_openai - total_end_time_openai
+                self.performance_metrics['total_inference_time_openai'] = total_inference_time_openai
+            else:
+                df[f'{self.llm_judge}_result'] = df[column].apply(lambda x: self._openai_query(x, query))
         elif self.llm_judge == 'anthropic':
-            df[f'{self.llm_judge}_result'] = df[column].apply(lambda x: self._anthropic_query(x, query))
+            if measure_time:
+                total_start_time_anthropic = time.time()
+                df[f'{self.llm_judge}_result'] = df[column].apply(lambda x: self._timed_anthropic_query(x, query))
+                total_end_time_anthropic = time.time()
+                total_inference_time_anthropic = total_start_time_anthropic - total_end_time_anthropic
+                self.performance_metrics['total_inference_time_anthropic'] = total_inference_time_anthropic
+            else:
+                df[f'{self.llm_judge}_result'] = df[column].apply(lambda x: self._anthropic_query(x, query))
         return df
 
-    @_time_single_inference
     def _openai_query(self, data: str, query: str) -> str:
         prompt = f"{query}:\n\n{data}\n\n"
 
@@ -107,7 +91,6 @@ class LLMQueryManager:
 
         return response.choices[0].message.content.strip()
 
-    @_time_single_inference
     def _anthropic_query(self, data: str, query: str) -> str:
         prompt = f"{query}:\n\n{data}\n\n"
 
@@ -127,7 +110,6 @@ class LLMQueryManager:
 
         return response.choices[0].message.content.strip()
 
-    @_time_single_inference
     def _local_query(self, data: str, query: str) -> str:
         prompt = f"{query}:\n\n{data}\n\n"
 
@@ -145,16 +127,50 @@ class LLMQueryManager:
         return output
     
    
+
     def get_performance_report(self) -> Dict[str, Any]:
-        """
-        Generate a performance report for executed queries.
+
+        total_queries = sum(len(times) for times in self.performance_metrics.get('single_inference_times_local', []))
         
-        :return: Dictionary of performance metrics
-        """
+        average_execution_time_local = np.mean(
+            [entry['time'] for entry in self.performance_metrics.get('single_inference_times_local', [])]
+        ) if total_queries > 0 else 0
+
+        average_execution_time_openai = np.mean(
+            [entry['time'] for entry in self.performance_metrics.get('single_inference_times_openai', [])]
+        ) if total_queries > 0 else 0
+
+        average_execution_time_anthropic = np.mean(
+            [entry['time'] for entry in self.performance_metrics.get('single_inference_times_anthropic', [])]
+        ) if total_queries > 0 else 0
+        
         return {
             'metrics': self.performance_metrics,
-            'total_queries': len(self.performance_metrics),
-            'average_execution_time': np.mean(
-                [metric['total_execution_time'] for metric in self.performance_metrics.values()]
-            ) if self.performance_metrics else 0
+            'total_queries': total_queries,
+            'average_execution_time_local': average_execution_time_local,
+            'average_execution_time_openai': average_execution_time_openai,
+            'average_execution_time_anthropic': average_execution_time_anthropic
         }
+
+
+    def _time_query(self, query_func: Callable, data: str, query: str, query_name: str) -> str:
+        start_time = time.time()
+        result = query_func(data, query)
+        end_time = time.time() 
+        single_inference_time = end_time - start_time
+        
+        self.performance_metrics.setdefault(f'single_inference_times_{query_name}', []).append({
+            'query': query[:5],
+            'time': single_inference_time
+        })
+        
+        return result
+    
+    def _timed_local_query(self, data: str, query: str) -> str:
+        return self._time_query(self._local_query, data, query, "local")
+    
+    def _timed_openai_query(self, data: str, query: str) -> str:
+        return self._time_query(self._openai_query, data, query, "openai")
+
+    def _timed_anthropic_query(self, data: str, query: str) -> str:
+        return self._time_query(self._anthropic_query, data, query, "anthropic")
