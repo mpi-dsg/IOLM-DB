@@ -43,20 +43,17 @@ class LLMQueryManager:
     def execute_query_llm(self, df: pd.DataFrame, query: str, column: str = None, measure_time: bool = False) -> pd.DataFrame:
         if measure_time:
             df['local_result'] = df[column].apply(lambda x: self._timed_local_query(x, query))
-            self.performance_metrics['total_inference_time_local'] = self._calculate_time(self._timed_local_query, df, column, query)
         else:
             df['local_result'] = df[column].apply(lambda x: self._local_query(x, query))
 
         if self.llm_judge == 'openai':
             if measure_time:
                 df[f'{self.llm_judge}_result'] = df[column].apply(lambda x: self._timed_openai_query(x, query))
-                self.performance_metrics['total_inference_time_openai'] = self._calculate_time(self._timed_openai_query, df, column, query)
             else:
                 df[f'{self.llm_judge}_result'] = df[column].apply(lambda x: self._openai_query(x, query))
         elif self.llm_judge == 'anthropic':
             if measure_time:
                 df[f'{self.llm_judge}_result'] = df[column].apply(lambda x: self._timed_anthropic_query(x, query))
-                self.performance_metrics['total_inference_time_anthropic'] = self._calculate_time(self._timed_anthropic_query, df, column, query)
             else:
                 df[f'{self.llm_judge}_result'] = df[column].apply(lambda x: self._anthropic_query(x, query))
         return df
@@ -112,7 +109,15 @@ class LLMQueryManager:
             [entry['time'] for entry in self.performance_metrics.get('single_inference_times_local', [])]
         ) if total_queries > 0 else 0
 
+        total_execution_time_local = np.sum(
+            [entry['time'] for entry in self.performance_metrics.get('single_inference_times_local', [])]
+        ) if total_queries > 0 else 0
+
         average_execution_time_openai = np.mean(
+            [entry['time'] for entry in self.performance_metrics.get('single_inference_times_openai', [])]
+        ) if total_queries > 0 else 0
+
+        total_execution_time_openai = np.sum(
             [entry['time'] for entry in self.performance_metrics.get('single_inference_times_openai', [])]
         ) if total_queries > 0 else 0
 
@@ -120,12 +125,21 @@ class LLMQueryManager:
             [entry['time'] for entry in self.performance_metrics.get('single_inference_times_anthropic', [])]
         ) if total_queries > 0 else 0
 
+        total_execution_time_anthropic = np.sum(
+            [entry['time'] for entry in self.performance_metrics.get('single_inference_times_anthropic', [])]
+        ) if total_queries > 0 else 0
+
         return {
-            'metrics': self.performance_metrics,
             'total_queries': total_queries,
             'average_execution_time_local': average_execution_time_local,
             'average_execution_time_openai': average_execution_time_openai,
-            'average_execution_time_anthropic': average_execution_time_anthropic
+            'average_execution_time_anthropic': average_execution_time_anthropic,
+
+            'total_execution_time_local': total_execution_time_local,
+            'total_execution_time_openai': total_execution_time_openai,
+            'total_execution_time_anthropic': total_execution_time_anthropic,
+            'metrics': self.performance_metrics,
+
         }
 
     def _time_query(self, query_func: Callable, data: str, query: str, query_name: str) -> str:
@@ -134,7 +148,7 @@ class LLMQueryManager:
         end_time = time.time()
         single_inference_time = end_time - start_time
         self.performance_metrics.setdefault(f'single_inference_times_{query_name}', []).append({
-            'query': query[:15],
+            'query': data,
             'time': single_inference_time
         })
         return result
@@ -147,9 +161,3 @@ class LLMQueryManager:
 
     def _timed_anthropic_query(self, data: str, query: str) -> str:
         return self._time_query(self._anthropic_query, data, query, "anthropic")
-
-    def _calculate_time(self, timed_query_func: Callable, df: pd.DataFrame, column: str, query: str) -> float:
-        start_time = time.time()
-        df[column].apply(lambda x: timed_query_func(x, query))
-        end_time = time.time()
-        return end_time - start_time

@@ -48,7 +48,7 @@ def main():
     args = parser.parse_args()
 
     print(args)
-    
+
     setup_logging()
     logger = logging.getLogger('LLMQuery')
     
@@ -71,7 +71,7 @@ def main():
             results = query_manager.execute_query_llm(df, args.query, column=args.column, measure_time=args.time)
             logger.info(f"Query results: {results}")
         
-        logger.info(query_manager.performance_metrics)
+        logger.info(query_manager.get_performance_report())
         comparator = ModelComparator()
         comparison_report = comparator.compare_models(results)
         if 'semantic_score_mean' in comparison_report.columns:
