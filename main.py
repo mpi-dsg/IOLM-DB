@@ -47,6 +47,8 @@ def main():
     
     args = parser.parse_args()
 
+    print(args)
+    
     setup_logging()
     logger = logging.getLogger('LLMQuery')
     
@@ -70,11 +72,12 @@ def main():
             logger.info(f"Query results: {results}")
         
         logger.info(query_manager.performance_metrics)
-        # comparator = ModelComparator()
-        # comparison_report = comparator.compare_models(results)
-        # logger.info(comparison_report['semantic_score_mean'].mean())
+        comparator = ModelComparator()
+        comparison_report = comparator.compare_models(results)
+        if 'semantic_score_mean' in comparison_report.columns:
+            logger.info(comparison_report['semantic_score_mean'].mean())
         
-        # comparison_report.to_csv(args.output, index=False)
+        comparison_report.to_csv(args.output, index=False)
         logger.info(f"Results saved to {args.output}")
     
     except Exception as e:

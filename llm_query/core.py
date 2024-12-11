@@ -3,12 +3,14 @@ import time
 import json
 import pandas as pd
 import numpy as np
+from dotenv import load_dotenv
 from typing import List, Dict, Any, Callable
 import openai
 import anthropic
 from vllm import LLM
 from transformers import AutoTokenizer
 
+load_dotenv()
 
 class LLMQueryManager:
     def __init__(self, model_name: str = None, llm_judge: str = 'openai'):
@@ -21,8 +23,8 @@ class LLMQueryManager:
         self._cache_openai = self.load_cache('openai_cache.json') if 'openai' in llm_judge else {}
         self._cache_anthropic = self.load_cache('anthropic_cache.json') if 'anthropic' in llm_judge else {}
 
-        self.openai_client = openai.OpenAI() if 'openai' in llm_judge else None
-        self.anthropic_client = anthropic.Anthropic() if 'anthropic' in llm_judge else None
+        self.openai_client = openai.OpenAI(api_key = os.getenv("OPENAI_API_KEY")) if 'openai' in llm_judge else None
+        self.anthropic_client = anthropic.Anthropic(api_key = os.getenv("ANTHROPIC_API_KEY")) if 'anthropic' in llm_judge else None
 
         if model_name:
             self.tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -83,12 +85,13 @@ class LLMQueryManager:
 
         response = self.anthropic_client.messages.create(
             model="claude-3-opus-20240229",
+            max_tokens=100,
+            system=self.system_prompt,
             messages=[
-                {"role": "system", "content": self.system_prompt},
                 {"role": "user", "content": prompt}
             ]
         )
-        result = response.choices[0].message.content.strip()
+        result = response.content[0].text.strip()
         self._cache_anthropic[prompt] = result
         self.save_cache('anthropic_cache.json', self._cache_anthropic)
         return result
@@ -131,7 +134,7 @@ class LLMQueryManager:
         end_time = time.time()
         single_inference_time = end_time - start_time
         self.performance_metrics.setdefault(f'single_inference_times_{query_name}', []).append({
-            'query': query[:5],
+            'query': query[:15],
             'time': single_inference_time
         })
         return result

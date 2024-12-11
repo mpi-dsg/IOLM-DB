@@ -22,17 +22,19 @@ class ModelComparator:
 
     def compare_models(self, df: pd.DataFrame) -> pd.DataFrame:
 
+        if 'openai_result' in df.columns:
+            df['semantic_score_openai'] = df.apply(
+                lambda row: self.calculate_semantic_score(row['openai_result'], row['local_result']), 
+                axis=1
+            )
 
-        df['semantic_score_openai'] = df.apply(
-            lambda row: self.calculate_semantic_score(row['openai_result'], row['local_result']), 
-            axis=1
-        )
-
-        df['semantic_score_anthropic'] = df.apply(
-            lambda row: self.calculate_semantic_score(row['anthropic_result'], row['local_result']), 
-            axis=1
-        )
-
-        df['semantic_score_mean'] = df[['semantic_score_openai', 'semantic_score_anthropic']].mean(axis=1)
+        if 'anthropic_result'in df.columns:
+            df['semantic_score_anthropic'] = df.apply(
+                lambda row: self.calculate_semantic_score(row['anthropic_result'], row['local_result']), 
+                axis=1
+            )
+        
+        if 'openai_result' in df.columns and 'anthropic_result' in df.columns:
+            df['semantic_score_mean'] = df[['semantic_score_openai', 'semantic_score_anthropic']].mean(axis=1)
 
         return df
