@@ -148,7 +148,7 @@ class LLMQueryManager:
         end_time = time.time()
         single_inference_time = end_time - start_time
         self.performance_metrics.setdefault(f'single_inference_times_{query_name}', []).append({
-            'query': data,
+            'query': data[:10],
             'time': single_inference_time
         })
         return result

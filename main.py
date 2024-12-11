@@ -1,6 +1,7 @@
 import argparse
 import logging
 import pandas as pd
+from datetime import datetime
 
 from llm_query.core import LLMQueryManager
 from llm_query.evaluators import ModelComparator
@@ -10,7 +11,7 @@ def setup_logging():
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        filename='llm_query.log'
+        filename='logs/llm_query_logging_{:%Y-%m-%d-%H-%M}.log'.format(datetime.now()),
     )
 
 def main():
@@ -36,7 +37,7 @@ def main():
     parser.add_argument('--column', type=str, default='text', 
                         help='Column to apply the task on')
 
-    parser.add_argument('--max-rows', type=int, default=10, 
+    parser.add_argument('--max-rows', type=int, default=1000, 
                         help='Limit number of rows for processing')
     
     parser.add_argument('--llm-judge', choices=['openai', 'anthropic', 'off'], default='anthropic',
@@ -71,14 +72,18 @@ def main():
             results = query_manager.execute_query_llm(df, args.query, column=args.column, measure_time=args.time)
             logger.info(f"Query results: {results}")
         
-        logger.info(query_manager.get_performance_report())
+        report = query_manager.get_performance_report()
+        logger.info(report)
         comparator = ModelComparator()
         comparison_report = comparator.compare_models(results)
         if 'semantic_score_mean' in comparison_report.columns:
             logger.info(comparison_report['semantic_score_mean'].mean())
         
-        comparison_report.to_csv(args.output, index=False)
+        comparison_report.to_csv(f'results/{args.model_name.split('/')[-1]}_{args.output}', index=False)
         logger.info(f"Results saved to {args.output}")
+
+        with open(f'results/{args.model_name.split('/')[-1]}_performance_report.txt', 'w') as file:
+            file.write(str(report))
     
     except Exception as e:
         logger.error(f"An error occurred: {e}", exc_info=True)
