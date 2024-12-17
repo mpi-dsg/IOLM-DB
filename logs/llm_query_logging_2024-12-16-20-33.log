@@ -1,0 +1,47 @@
+2024-12-16 20:34:35,515 - LLMQuery - ERROR - An error occurred: 'layers.20.mlp.down_proj.weight_scale'
+Traceback (most recent call last):
+  File "/OS/MLeeF/work/bardia/lang_query/main.py", line 69, in main
+    query_manager = LLMQueryManager(model_name=args.model_name, llm_judge=args.llm_judge)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/OS/MLeeF/work/bardia/lang_query/llm_query/core.py", line 31, in __init__
+    self.model = LLM(model=model_name)
+                 ^^^^^^^^^^^^^^^^^^^^^
+  File "/NS/venvs/work/bardia/miniconda3/envs/llmtt/lib/python3.12/site-packages/vllm/utils.py", line 1028, in inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/NS/venvs/work/bardia/miniconda3/envs/llmtt/lib/python3.12/site-packages/vllm/entrypoints/llm.py", line 210, in __init__
+    self.llm_engine = self.engine_class.from_engine_args(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/NS/venvs/work/bardia/miniconda3/envs/llmtt/lib/python3.12/site-packages/vllm/engine/llm_engine.py", line 585, in from_engine_args
+    engine = cls(
+             ^^^^
+  File "/NS/venvs/work/bardia/miniconda3/envs/llmtt/lib/python3.12/site-packages/vllm/engine/llm_engine.py", line 347, in __init__
+    self.model_executor = executor_class(vllm_config=vllm_config, )
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/NS/venvs/work/bardia/miniconda3/envs/llmtt/lib/python3.12/site-packages/vllm/executor/executor_base.py", line 36, in __init__
+    self._init_executor()
+  File "/NS/venvs/work/bardia/miniconda3/envs/llmtt/lib/python3.12/site-packages/vllm/executor/gpu_executor.py", line 40, in _init_executor
+    self.driver_worker.load_model()
+  File "/NS/venvs/work/bardia/miniconda3/envs/llmtt/lib/python3.12/site-packages/vllm/worker/worker.py", line 152, in load_model
+    self.model_runner.load_model()
+  File "/NS/venvs/work/bardia/miniconda3/envs/llmtt/lib/python3.12/site-packages/vllm/worker/model_runner.py", line 1074, in load_model
+    self.model = get_model(vllm_config=self.vllm_config)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/NS/venvs/work/bardia/miniconda3/envs/llmtt/lib/python3.12/site-packages/vllm/model_executor/model_loader/__init__.py", line 12, in get_model
+    return loader.load_model(vllm_config=vllm_config)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/NS/venvs/work/bardia/miniconda3/envs/llmtt/lib/python3.12/site-packages/vllm/model_executor/model_loader/loader.py", line 334, in load_model
+    model.load_weights(self._get_all_weights(model_config, model))
+  File "/NS/venvs/work/bardia/miniconda3/envs/llmtt/lib/python3.12/site-packages/vllm/model_executor/models/llama.py", line 586, in load_weights
+    loader.load_weights(
+  File "/NS/venvs/work/bardia/miniconda3/envs/llmtt/lib/python3.12/site-packages/vllm/model_executor/models/utils.py", line 229, in load_weights
+    autoloaded_weights = list(self._load_module("", self.module, weights))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/NS/venvs/work/bardia/miniconda3/envs/llmtt/lib/python3.12/site-packages/vllm/model_executor/models/utils.py", line 190, in _load_module
+    yield from self._load_module(prefix,
+  File "/NS/venvs/work/bardia/miniconda3/envs/llmtt/lib/python3.12/site-packages/vllm/model_executor/models/utils.py", line 175, in _load_module
+    module_load_weights(weights)
+  File "/NS/venvs/work/bardia/miniconda3/envs/llmtt/lib/python3.12/site-packages/vllm/model_executor/models/llama.py", line 407, in load_weights
+    param = params_dict[name]
+            ~~~~~~~~~~~^^^^^^
+KeyError: 'layers.20.mlp.down_proj.weight_scale'
